@@ -10,7 +10,7 @@ __pycache__/
 .idea
 
 # Dataset
-dataset/UCI HAR Dataset/UCI HAR Dataset/
+dataset/UCI HAR Dataset/UCI HAR Dataset/*
 
 # Distribution / packaging
 .Python
