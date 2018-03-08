@@ -9,9 +9,6 @@ __pycache__/
 # PyCharm
 .idea
 
-# Dataset
-dataset/UCI HAR Dataset/UCI HAR Dataset/*
-
 # Distribution / packaging
 .Python
 env/
