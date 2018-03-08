@@ -39,7 +39,7 @@ def CNN_ONLY():
     # ==> bs*36*68*1
     # conv, in_channel=1, out_channels=5, kernel_size=(5, 5), strides=(1, 1), valid
     W_1 = tf.Variable(tf.truncated_normal([5, 5, 1, 5]), name='w_conv_1')
-    B_1 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv_1')
+    B_1 = tf.Variable(tf.constant(0.1, shape=[5]), name='b_conv_1')
     CONV_1 = tf.nn.relu(tf.nn.conv2d(X, W_1, strides=[1, 1, 1, 1], padding='VALID') + B_1)
     # ==> 32*64*5
     # avg_p, ksize=(4, 4), strides=(1, 1)
