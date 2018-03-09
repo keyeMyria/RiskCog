@@ -33,63 +33,64 @@ def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3):
     return iterator, iterator.get_next()
 
 
-def CNN_ONLY(X, KP):
+def CNN_ONLY(X):
     # 1st
     # ==> bs*36*68*1
     # conv, in_channel=1, out_channels=5, kernel_size=(5, 5), strides=(1, 1), valid
-    W_1 = tf.Variable(tf.truncated_normal([5, 5, 1, 5]), name='w_conv_1')
-    B_1 = tf.Variable(tf.constant(0.1, shape=[5]), name='b_conv_1')
+    W_1 = tf.Variable(tf.truncated_normal([5, 5, 1, 5], stddev=0.1), name='w_conv_1')
+    B_1 = tf.Variable(tf.constant(0.002, shape=[5]), name='b_conv_1')
     CONV_1 = tf.nn.relu(tf.nn.conv2d(X, W_1, strides=[1, 1, 1, 1], padding='VALID') + B_1)
     # ==> 32*64*5
     # avg_p, ksize=(4, 4), strides=(1, 1)
-    POOL_1 = tf.nn.avg_pool(CONV_1, ksize=[1, 4, 4, 1], strides=[1, 4, 4, 1], padding='SAME')
+    POOL_1 = tf.nn.avg_pool(CONV_1, ksize=[1, 4, 4, 1], strides=[1, 4, 4, 1], padding='VALID')
     # ==> 8*16*5
     # 2nd
     # ==> 8*16*5
     # conv, in_channel=5, out_channels=10, kernel_size=(5, 5), strides=(1, 1), valid
-    W_2 = tf.Variable(tf.truncated_normal([5, 5, 5, 10]), name='w_conv_2')
-    B_2 = tf.Variable(tf.constant(0.1, shape=[10]), name='b_conv_2')
+    W_2 = tf.Variable(tf.truncated_normal([5, 5, 5, 10], stddev=0.5), name='w_conv_2')
+    B_2 = tf.Variable(tf.constant(0.002, shape=[10]), name='b_conv_2')
     CONV_2 = tf.nn.relu(tf.nn.conv2d(POOL_1, W_2, strides=[1, 1, 1, 1], padding='VALID') + B_2)
     # ==> 4*12*10
     # avg_p, ksize=(2, 2), strides=(1, 1)
-    POOL_2 = tf.nn.avg_pool(CONV_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    POOL_2 = tf.nn.avg_pool(CONV_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
     # ==> 2*6*10
     # 3rd
     # dense, 120
     W_3 = tf.Variable(tf.truncated_normal([2 * 6 * 10, 120]), name='w_dense_1')
-    B_3 = tf.Variable(tf.constant(0.1, shape=[120]), name='b_dense_1')
+    B_3 = tf.Variable(tf.constant(0.002, shape=[120]), name='b_dense_1')
     POOL_2_FLAT = tf.reshape(POOL_2, [-1, 2 * 6 * 10])
-    # DENSE_3 = tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3)
-    DENSE_3 = tf.nn.dropout(tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3), KP)
+    DENSE_3 = tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3)
+    # DENSE_3 = tf.nn.dropout(tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3), 0.5)
     # output
     # softmax, 6
     W_4 = tf.Variable(tf.truncated_normal([120, 6]), name='w_softmax')
-    B_4 = tf.Variable(tf.constant(0.1, shape=[6]), name='b_softmax')
-    # return tf.nn.softmax(tf.matmul(DENSE_3, W_4) + B_4)
-    return tf.matmul(DENSE_3, W_4) + B_4
+    B_4 = tf.Variable(tf.constant(0.002, shape=[6]), name='b_softmax')
+    return tf.nn.softmax(tf.matmul(DENSE_3, W_4) + B_4)
+    # return tf.matmul(DENSE_3, W_4) + B_4
 
 
 def main():
     DATA_PATH = '../dataset/UCI_TFRecord'
     batch_size = 128
     class_size = 6
-    training_epochs = 100
+    training_epochs = 200
 
     # network
     X = tf.placeholder(tf.float32, [None, 36, 68, 1])
     KP = tf.placeholder(tf.float32)
-    Y_ONLY_CNN = CNN_ONLY(X, KP)  # network
+    Y_ONLY_CNN = CNN_ONLY(X)  # network
 
     # optimizer
     Y = tf.placeholder(tf.float32, [None, 6])  # label
-
-    # Softmax loss and L2
-    l2 = 0.0015 * sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
+    l2 = 0.001 * sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
     cost = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=Y_ONLY_CNN)
     ) + l2
-    optimizer = tf.train.GradientDescentOptimizer(0.001).minimize(cost)
 
+    # global_step = tf.Variable(0)  
+    # learning_rate = tf.train.exponential_decay(1e-4, global_step, decay_steps=5, decay_rate=0.98, staircase=True)      
+    # optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost, global_step=global_step)
+    optimizer = tf.train.AdamOptimizer(0.0005).minimize(cost)
 
     # predictor
     correct_prediction = tf.equal(tf.argmax(Y_ONLY_CNN, 1), tf.argmax(Y, 1))
@@ -112,6 +113,8 @@ def main():
             while True:
                 try:
                     window_batch, label_batch = sess.run(train_batch)
+                    # print np.array(window_batch)[0][:, 0]
+                    # exit(-1)
                     _, _cost, _accuracy = sess.run(
                         [optimizer, cost, accuracy], feed_dict={X: window_batch,
                                                                 Y: label_batch,
