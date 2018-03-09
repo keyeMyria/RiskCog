@@ -33,7 +33,7 @@ def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3):
     return iterator, iterator.get_next()
 
 
-def CNN_ONLY(X):
+def CNN_ONLY(X, KP):
     # 1st
     # ==> bs*36*68*1
     # conv, in_channel=1, out_channels=5, kernel_size=(5, 5), strides=(1, 1), valid
@@ -59,9 +59,8 @@ def CNN_ONLY(X):
     W_3 = tf.Variable(tf.truncated_normal([2 * 6 * 10, 120]), name='w_dense_1')
     B_3 = tf.Variable(tf.constant(0.1, shape=[120]), name='b_dense_1')
     POOL_2_FLAT = tf.reshape(POOL_2, [-1, 2 * 6 * 10])
-    DENSE_3 = tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3)
-    # KP = tf.placeholder(tf.float32)
-    # DENSE_3 = tf.nn.dropout(DENSE_3, KP)
+    # DENSE_3 = tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3)
+    DENSE_3 = tf.nn.dropout(tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3), KP)
     # output
     # softmax, 6
     W_4 = tf.Variable(tf.truncated_normal([120, 6]), name='w_softmax')
@@ -72,13 +71,14 @@ def CNN_ONLY(X):
 
 def main():
     DATA_PATH = '../dataset/UCI_TFRecord'
-    batch_size = 1000
+    batch_size = 128
     class_size = 6
     training_epochs = 100
 
     # network
     X = tf.placeholder(tf.float32, [None, 36, 68, 1])
-    Y_ONLY_CNN = CNN_ONLY(X)  # network
+    KP = tf.placeholder(tf.float32)
+    Y_ONLY_CNN = CNN_ONLY(X, KP)  # network
 
     # optimizer
     Y = tf.placeholder(tf.float32, [None, 6])  # label
@@ -88,7 +88,7 @@ def main():
     cost = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=Y_ONLY_CNN)
     ) + l2
-    optimizer = tf.train.AdamOptimizer(0.01).minimize(cost)
+    optimizer = tf.train.GradientDescentOptimizer(0.001).minimize(cost)
 
 
     # predictor
@@ -113,7 +113,9 @@ def main():
                 try:
                     window_batch, label_batch = sess.run(train_batch)
                     _, _cost, _accuracy = sess.run(
-                        [optimizer, cost, accuracy], feed_dict={X: window_batch, Y: label_batch})
+                        [optimizer, cost, accuracy], feed_dict={X: window_batch,
+                                                                Y: label_batch,
+                                                                KP: 0.5})
                     message.append([_cost, _accuracy])
 
                 except tf.errors.OutOfRangeError:
@@ -126,7 +128,9 @@ def main():
                 try:
                     window_batch, label_batch = sess.run(test_batch)
                     _, _cost, _accuracy = sess.run(
-                        [Y_ONLY_CNN, cost, accuracy], feed_dict={X: window_batch, Y: label_batch})
+                        [Y_ONLY_CNN, cost, accuracy], feed_dict={X: window_batch,
+                                                                 Y: label_batch,
+                                                                 KP: 0.5})
                     message.append([_cost, _accuracy])
 
                 except tf.errors.OutOfRangeError:
