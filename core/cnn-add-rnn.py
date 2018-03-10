@@ -50,7 +50,7 @@ def cnn_add_rnn(X, batch_size, class_size):
     # 2nd
     # ==> 71*9*64
     # conv, in_channel=64, out_channels=64, kernel_size=(5, 1), strides=(1, 1), valid
-    w_2 = tf.Variable(tf.truncated_normal([5, 1, 64, 64], stddev=0.2), name='w_conv_2')
+    w_2 = tf.Variable(tf.truncated_normal([5, 1, 64, 64], stddev=0.1), name='w_conv_2')
     b_2 = tf.Variable(tf.constant(0.002, shape=[64]), name='b_conv_2')
     conv_2 = tf.nn.relu(tf.nn.conv2d(conv_1, w_2, strides=[1, 1, 1, 1], padding='VALID') + b_2, name='conv_2')
     # print_activations(conv_2)
@@ -58,7 +58,7 @@ def cnn_add_rnn(X, batch_size, class_size):
     # 3rd
     # ==> 67*9*64
     # conv, in_channel=64, out_channels=64, kernel_size=(5, 1), strides=(1, 1), valid
-    w_3 = tf.Variable(tf.truncated_normal([5, 1, 64, 64], stddev=0.3), name='w_conv_3')
+    w_3 = tf.Variable(tf.truncated_normal([5, 1, 64, 64], stddev=0.1), name='w_conv_3')
     b_3 = tf.Variable(tf.constant(0.002, shape=[64], name='b_conv_3'))
     conv_3 = tf.nn.relu(tf.nn.conv2d(conv_2, w_3, strides=[1, 1, 1, 1], padding='VALID') + b_3, name='conv_3')
     # print_activations(conv_3)
@@ -66,7 +66,7 @@ def cnn_add_rnn(X, batch_size, class_size):
     # 4th
     # ==> 63*9*64
     # conv, in_channel=64, out_channels=64, kernel_size=(5, 1), strides=(1, 1), valid
-    w_4 = tf.Variable(tf.truncated_normal([5, 1, 64, 64], stddev=0.4), name='w_conv_4')
+    w_4 = tf.Variable(tf.truncated_normal([5, 1, 64, 64], stddev=0.1), name='w_conv_4')
     b_4 = tf.Variable(tf.constant(0.002, shape=[64], name='b_conv_4'))
     conv_4 = tf.nn.relu(tf.nn.conv2d(conv_3, w_4, strides=[1, 1, 1, 1], padding='VALID') + b_4, name='conv_4')
     # print_activations(conv_4)
@@ -74,32 +74,32 @@ def cnn_add_rnn(X, batch_size, class_size):
     # 5th
     # reshape, bs*59*9*64 => bs*59*(9*64)
     conv_4_reshape = tf.reshape(tf.transpose(conv_4, [0, 1, 3, 2]), [-1, 59, 9*64], name='conv_4_reshape')
-    # print_activations(conv_4_reshape)
     # lstm*2, bs*time_steps*input_size, time_steps=59, input_size=64*9, units=128
     lstm_1 = tf.contrib.rnn.BasicLSTMCell(num_units=128, forget_bias=1.0, state_is_tuple=True)
+    lstm_1_dropout = tf.nn.rnn_cell.DropoutWrapper(lstm_1, output_keep_prob=0.5)
     lstm_2 = tf.contrib.rnn.BasicLSTMCell(num_units=128, forget_bias=1.0, state_is_tuple=True)
-    lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_1, lstm_2], state_is_tuple=True)
-    initial_state = lstm_cells.zero_state(batch_size, dtype=tf.float32)
-    outputs, states = tf.nn.dynamic_rnn(lstm_cells, conv_4_reshape, initial_state=initial_state)
+    lstm_2_dropout = tf.nn.rnn_cell.DropoutWrapper(lstm_2, output_keep_prob=0.5)
+    lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_1_dropout, lstm_2_dropout], state_is_tuple=True)
+    outputs, states = tf.nn.dynamic_rnn(lstm_cells, conv_4_reshape, dtype=tf.float32)
+    print_activations(outputs)
     output = tf.transpose(outputs, [1, 0, 2])[-1]
-    # print_activations(outputs)
-    # print_activations(output)
+    print_activations(output)
     # ==> bs*128
     # 7th
-    # softmax, 1000
+    # softmax, class_size
     w_7 = tf.Variable(tf.truncated_normal([128, class_size], stddev=0.1), name='w_softmax')
     b_7 = tf.Variable(tf.constant(0.002, shape=[class_size], name='b_softmax'))
     softmax = tf.nn.softmax(tf.matmul(output, w_7) + b_7)
-    # print_activations(softmax)
+    print_activations(softmax)
 
     return softmax
 
 
 def main():
-    DATA_PATH = '../dataset/target'
-    batch_size = 100
-    class_size = 3
-    training_epochs = 200
+    DATA_PATH = '../dataset/tuning-10-1000'
+    batch_size = 500
+    class_size = 10
+    training_epochs = 20
 
     # network
     X = tf.placeholder(tf.float32, [None, 75, 9, 1])
@@ -108,15 +108,16 @@ def main():
 
     # optimizer
     Y = tf.placeholder(tf.float32, [None, class_size])  # label
-    l2 = 0.001 * sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
+    l2 = 0.0 * sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
     cost = tf.reduce_mean(
         tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=Y_CNN_ADD_RNN)
     ) + l2
 
-    # global_step = tf.Variable(0)
-    # learning_rate = tf.train.exponential_decay(1e-4, global_step, decay_steps=5, decay_rate=0.98, staircase=True)
+    global_step = tf.Variable(0)
+    learning_rate = tf.train.exponential_decay(1e-3, global_step, decay_steps=8, decay_rate=0.9, staircase=True)
     # optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost, global_step=global_step)
-    optimizer = tf.train.AdamOptimizer(0.0005).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost, global_step=global_step)
+    # optimizer = tf.train.AdamOptimizer(0.0001).minimize(cost)
 
     # predictor
     correct_prediction = tf.equal(tf.argmax(Y_CNN_ADD_RNN, 1), tf.argmax(Y, 1))
@@ -131,10 +132,13 @@ def main():
     # run
     with tf.Session() as sess:
         sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+        # print(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
 
         for i in range(0, training_epochs):
             message = []
             sess.run(train_iterator.initializer)
+
+            print(sess.run(global_step))
 
             while True:
                 try:
@@ -143,22 +147,24 @@ def main():
                         _, _cost, _accuracy = sess.run(
                             [optimizer, cost, accuracy], feed_dict={X: window_batch, Y: label_batch, KP: 0.5})
                         message.append([_cost, _accuracy])
+                        # print('==>', _cost, _accuracy)
                 except tf.errors.OutOfRangeError:
                     break
             print(np.mean(message, axis=0))
 
             message = []
             sess.run(test_iterator.initializer)
-            while False:
+            while True:
                 try:
                     window_batch, label_batch = sess.run(test_batch)
                     if window_batch.shape[0] == batch_size:
                         _, _cost, _accuracy = sess.run(
                             [Y_CNN_ADD_RNN, cost, accuracy], feed_dict={X: window_batch, Y: label_batch, KP: 0.5})
                         message.append([_cost, _accuracy])
+                        # print('==>', _cost, _accuracy)
                 except tf.errors.OutOfRangeError:
                     break
-            # print(np.mean(message, axis=0))
+            print(np.mean(message, axis=0))
             print('>> train iter {0} done'.format(i + 1))
 
 
