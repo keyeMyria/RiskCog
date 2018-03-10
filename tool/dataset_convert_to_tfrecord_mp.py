@@ -16,11 +16,11 @@ import tensorflow as tf
 # how many to be train set
 _NUM_TRAIN = 0.8
 # how many class you want
-_CLASS_UPPER_LIMIT = 3
+_CLASS_UPPER_LIMIT = 50
 # how many window files you want
 _FILE_LOWER_LIMIT = 1000
 # how many files in one tfrecord file
-_NUM_PER_SHARD = 100
+_NUM_PER_SHARD = 1000
 # how many processes you want
 _NUM_PROCESSES = 10
 # and config the root(source) and target dir in main()
@@ -174,10 +174,8 @@ def get_size(filenames):
 
 # @profile
 def main():
-    root = '../to_test'
-    target = '../target'
-    # root = '/home/linzi/txdata/largeScale_Test_TX_LSTM/balanceDataSet/txData_Window_75'
-    # target = './tfrecord-for-1000-14000'
+    root = '/home/linzi/txdata/largeScale_Test_TX_LSTM/balanceDataSet/txData_Window_75'
+    target = '../dataset/tuning-10-1000'
 
     os.system('rm -rf {0}'.format(target))
     os.mkdir(target)

@@ -132,6 +132,35 @@ def get_equal_value_info(sensor_data):
     return result
 
 
+def isEqualError(path, th):
+
+    result = 0
+
+    invalidation_count = 0
+    match = {'x': 0, 'y': 1, 'z': 2}
+
+    s_d = getSensorData(path, 'acceleration', 'gravity', 'gyroscope')
+    # key is sensor and value is sensor data
+    for key, value in s_d.items():
+        # print(key, get_equal_value_info(value))
+        results = get_equal_value_info(value)
+        # print ('sensor: {0}'.format(key))
+        # k is axis and v is result of this axis's detection
+        valid = 0
+        for k, v in results.items():
+            # print ('sensor: {2} axis: {0} ratio: {1}'.format(k, v['ratio'], key))
+            if float(v['ratio']) >= th:
+                valid += 1
+        if valid == 3:
+            result += 1
+
+    if result:
+        # there exists equal value error
+        return 1
+    else:
+        # good 
+        return 0
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         print 'Usage: python eqerr_check.py [-v] YOUR_PATH THRESHOLD'
@@ -154,36 +183,6 @@ if __name__ == '__main__':
     path = sys.argv[-2]
     th = float(sys.argv[-1])
 
-    t = path.split('/')
-    output = '{0} {1}'.format(t[-3], t[-1])
-    result = 0
+    result = isEqualErro(path, th)
 
-    invalidation_count = 0
-    match = {'x': 0, 'y': 1, 'z': 2}
-
-    if verbose:
-        print 'sensor axis equal-value-ratio user file'
-
-    s_d = getSensorData(path, 'acceleration', 'gravity', 'gyroscope')
-    # key is sensor and value is sensor data
-    for key, value in s_d.items():
-        # print(key, get_equal_value_info(value))
-        results = get_equal_value_info(value)
-        # print ('sensor: {0}'.format(key))
-        # k is axis and v is result of this axis's detection
-        valid = 0
-        for k, v in results.items():
-            # print ('sensor: {2} axis: {0} ratio: {1}'.format(k, v['ratio'], key))
-            if verbose:
-                print key, k, v['ratio'], output
-            if float(v['ratio']) >= th:
-                valid += 1
-        if valid == 3:
-            result += 1
-
-    if result:
-        # there exists equal value error
-        print 1
-    else:
-        # good 
-        print 0
+    print result

@@ -9,6 +9,7 @@ __pycache__/
 # PyCharm
 .idea
 dataset/
+log/
 
 # Distribution / packaging
 .Python

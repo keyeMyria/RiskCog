@@ -24,16 +24,16 @@ class Config(object):
 		self.interval_Len = int(windowSize)
 		self.TH = 0.7
 
-		self.tmpSourcePath = "./rawTxData_" + windowSize
-		self.destinePath = "./txData_tfRecord_" + windowSize
+		self.tmpSourcePath = "../dataset/rawTxData_" + windowSize
+		self.destinePath = "../dataset/2txData_tfRecord_" + windowSize
 		self.rawPath = "/home/linzi/txdata/largeScale_Test_TX_LSTM/rawData"
 
 		self.trainRatio = 0.8
-		self.fileNum = 1000
+		self.fileNum = 100
 		self.processesNum = 10
-		self.perShardNum = 10000
+		self.perShardNum = 100
 		self.randomSeed = 0
-		# self.classNum = 1000
+		self.classNum = 100
 
 def _float_feature(values):
 	"""Returns a TF-Feature of floats.
@@ -284,8 +284,8 @@ def dataPreprocess(windowSize):
 			pool.apply_async(_real_write, args = (tmpTestSet, "test", shard_id_test, config.destinePath))
 			shard_id_test = shard_id_test + 1
 
-	# 	if totalClass >= config.classNum:
-	# 		break
+		if totalClass >= config.classNum:
+			break
 
 	if len(dataSet_train) > 0:
 		pool.apply_async(_real_write, args = (dataSet_train, "train", shard_id_train, config.destinePath))
@@ -330,7 +330,7 @@ if __name__ == '__main__':
 
 	os.system("cp -r {0} {1}".format(config.rawPath, config.tmpSourcePath))
 
-	stripEqerr(windowSize)
+	# stripEqerr(windowSize)
 
 	dataPreprocess(windowSize)
 
@@ -340,4 +340,4 @@ if __name__ == '__main__':
 
 #	infoRecord(windowSize)
 
-	os.system("rm -rf {}".format(config.tmpSourcePath))
+	# os.system("rm -rf {}".format(config.tmpSourcePath))
