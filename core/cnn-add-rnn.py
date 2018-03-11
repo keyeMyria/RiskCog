@@ -99,7 +99,7 @@ def main():
     DATA_PATH = '../dataset/tuning-10-1000'
     batch_size = 500
     class_size = 10
-    training_epochs = 20
+    training_epochs = 100
 
     # network
     X = tf.placeholder(tf.float32, [None, 75, 9, 1])
