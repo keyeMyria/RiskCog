@@ -12,13 +12,13 @@ import numpy as np
 import tensorflow as tf
 
 
-def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3):
+def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3, feature_size=36):
     def _parse_function(example_proto):
         features = {'window/encoded': tf.VarLenFeature(tf.float32),
                     'window/label': tf.FixedLenFeature((), tf.int64, default_value=0)}
         parsed_features = tf.parse_single_example(example_proto, features)
         window = tf.reshape(tf.sparse_tensor_to_dense(parsed_features['window/encoded']),
-                            shape=(36, 68, 1))
+                            shape=(feature_size, 68, 1))
 
         label = tf.one_hot(parsed_features['window/label'], class_size)
         return window, label
@@ -33,7 +33,7 @@ def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3):
     return iterator, iterator.get_next()
 
 
-def CNN_ONLY(X):
+def CNN_ONLY(X, class_size, feature_size):
     # 1st
     # ==> bs*36*68*1
     # conv, in_channel=1, out_channels=5, kernel_size=(5, 5), strides=(1, 1), valid
@@ -56,15 +56,15 @@ def CNN_ONLY(X):
     # ==> 2*6*10
     # 3rd
     # dense, 120
-    W_3 = tf.Variable(tf.truncated_normal([2 * 6 * 10, 120]), name='w_dense_1')
+    W_3 = tf.Variable(tf.truncated_normal([((feature_size-4)/4-4)/2 * 6 * 10, 120]), name='w_dense_1')
     B_3 = tf.Variable(tf.constant(0.002, shape=[120]), name='b_dense_1')
-    POOL_2_FLAT = tf.reshape(POOL_2, [-1, 2 * 6 * 10])
+    POOL_2_FLAT = tf.reshape(POOL_2, [-1, ((feature_size-4)/4-4)/2 * 6 * 10])
     DENSE_3 = tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3)
     # DENSE_3 = tf.nn.dropout(tf.nn.relu(tf.matmul(POOL_2_FLAT, W_3) + B_3), 0.5)
     # output
     # softmax, 6
-    W_4 = tf.Variable(tf.truncated_normal([120, 6]), name='w_softmax')
-    B_4 = tf.Variable(tf.constant(0.002, shape=[6]), name='b_softmax')
+    W_4 = tf.Variable(tf.truncated_normal([120, class_size]), name='w_softmax')
+    B_4 = tf.Variable(tf.constant(0.002, shape=[class_size]), name='b_softmax')
     return tf.nn.softmax(tf.matmul(DENSE_3, W_4) + B_4)
     # return tf.matmul(DENSE_3, W_4) + B_4
 
@@ -74,14 +74,15 @@ def main():
     batch_size = 128
     class_size = 6
     training_epochs = 200
+    feature_size = 40
 
     # network
-    X = tf.placeholder(tf.float32, [None, 36, 68, 1])
+    X = tf.placeholder(tf.float32, [None, feature_size, 68, 1])
     KP = tf.placeholder(tf.float32)
-    Y_ONLY_CNN = CNN_ONLY(X)  # network
+    Y_ONLY_CNN = CNN_ONLY(X, class_size, feature_size)  # network
 
     # optimizer
-    Y = tf.placeholder(tf.float32, [None, 6])  # label
+    Y = tf.placeholder(tf.float32, [None, feature_size])  # label
     l2 = 0.001 * sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
     cost = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=Y_ONLY_CNN)
@@ -98,9 +99,9 @@ def main():
 
     # input
     train_iterator, train_batch = input_pipeline(
-        root=DATA_PATH, usage='train', batch_size=batch_size, class_size=class_size)
+        root=DATA_PATH, usage='train', batch_size=batch_size, class_size=class_size, feature_size=feature_size)
     test_iterator, test_batch = input_pipeline(
-        root=DATA_PATH, usage='test', batch_size=batch_size, class_size=class_size)
+        root=DATA_PATH, usage='test', batch_size=batch_size, class_size=class_size, feature_size=feature_size)
 
     # run
     with tf.Session() as sess:

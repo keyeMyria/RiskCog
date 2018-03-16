@@ -13,13 +13,13 @@ import numpy as np
 import tensorflow as tf
 
 
-def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3):
+def input_pipeline(root, usage, batch_size=10, window_size=75, class_size=3, feature_size=9):
     def _parse_function(example_proto):
         features = {'window/encoded': tf.VarLenFeature(tf.float32),
                     'window/label': tf.FixedLenFeature((), tf.int64, default_value=0)}
         parsed_features = tf.parse_single_example(example_proto, features)
         window = tf.reshape(tf.sparse_tensor_to_dense(parsed_features['window/encoded']),
-                            shape=(75, 9, 1))
+                            shape=(75, feature_size, 1))
 
         label = tf.one_hot(parsed_features['window/label'], class_size)
         return window, label
@@ -38,7 +38,7 @@ def print_activations(t):
     print(t.op.name, ' ', t.get_shape().as_list())
 
 
-def cnn_add_rnn(X, batch_size, class_size):
+def cnn_add_rnn(X, batch_size, class_size, feature_size):
     # 1st
     # ==> bs*75*9*1
     # conv, in_channel=1, out_channels=64, kernel_size=(5, 1), strides=(1, 1), valid
@@ -73,7 +73,7 @@ def cnn_add_rnn(X, batch_size, class_size):
     # ==> 59*9*64
     # 5th
     # reshape, bs*59*9*64 => bs*59*(9*64)
-    conv_4_reshape = tf.reshape(tf.transpose(conv_4, [0, 1, 3, 2]), [-1, 59, 9*64], name='conv_4_reshape')
+    conv_4_reshape = tf.reshape(tf.transpose(conv_4, [0, 1, 3, 2]), [-1, 59, feature_size*64], name='conv_4_reshape')
     # lstm*2, bs*time_steps*input_size, time_steps=59, input_size=64*9, units=128
     lstm_1 = tf.contrib.rnn.BasicLSTMCell(num_units=128, forget_bias=1.0, state_is_tuple=True)
     lstm_1_dropout = tf.nn.rnn_cell.DropoutWrapper(lstm_1, output_keep_prob=0.5)
@@ -100,11 +100,13 @@ def main():
     batch_size = 500
     class_size = 10
     training_epochs = 100
+    feature_size = 9
+
 
     # network
-    X = tf.placeholder(tf.float32, [None, 75, 9, 1])
+    X = tf.placeholder(tf.float32, [None, 75, feature_size, 1])
     KP = tf.placeholder(tf.float32)
-    Y_CNN_ADD_RNN = cnn_add_rnn(X, batch_size, class_size)  # network
+    Y_CNN_ADD_RNN = cnn_add_rnn(X, batch_size, class_size, feature_size)  # network
 
     # optimizer
     Y = tf.placeholder(tf.float32, [None, class_size])  # label
@@ -125,9 +127,9 @@ def main():
 
     # input
     train_iterator, train_batch = input_pipeline(
-        root=DATA_PATH, usage='train', batch_size=batch_size, class_size=class_size)
+        root=DATA_PATH, usage='train', batch_size=batch_size, class_size=class_size, feature_size=feature_size)
     test_iterator, test_batch = input_pipeline(
-        root=DATA_PATH, usage='test', batch_size=batch_size, class_size=class_size)
+        root=DATA_PATH, usage='test', batch_size=batch_size, class_size=class_size, feature_size=feature_size)
 
     # run
     with tf.Session() as sess:
@@ -138,7 +140,7 @@ def main():
             message = []
             sess.run(train_iterator.initializer)
 
-            print(sess.run(global_step))
+            # print(sess.run(global_step))
 
             while True:
                 try:
