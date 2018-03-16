@@ -183,13 +183,13 @@ def dataSplit(sourcePath, interval_Len, class_id, user):
 				tmp = rawData[head * 9 : tail * 9]
 
 				for j in range(interval_Len):
-					acc_rept_x = data[j * 9] - data[j * 9 + 6]
-					acc_rept_y = data[j * 9 + 1] - data[j * 9 + 7]
-					acc_rept_z = data[j * 9 + 2] - data[j * 9 + 8]
+					acc_rept_x = tmp[j * 9] - tmp[j * 9 + 6]
+					acc_rept_y = tmp[j * 9 + 1] - tmp[j * 9 + 7]
+					acc_rept_z = tmp[j * 9 + 2] - tmp[j * 9 + 8]
 					acc_rept = math.sqrt(acc_rept_x * acc_rept_x + acc_rept_y * acc_rept_y + acc_rept_z * acc_rept_z)
-					r = math.sqrt(data[j * 9 + 6] * data[j * 9 + 6] + data[j * 9 + 7] * data[j * 9 + 7] + data[j * 9 + 8] * data[j * 9 + 8])
-					theta = math.acos(data[j * 9 + 8] / r)
-					phi = math.atan(data[j * 9 + 7] / data[j * 9 + 6])
+					r = math.sqrt(tmp[j * 9 + 6] * tmp[j * 9 + 6] + tmp[j * 9 + 7] * tmp[j * 9 + 7] + tmp[j * 9 + 8] * tmp[j * 9 + 8])
+					theta = math.acos(tmp[j * 9 + 8] / r)
+					phi = math.atan(tmp[j * 9 + 7] / tmp[j * 9 + 6])
 					tmpList = tmpList + tmp[j * 9 : (j + 1) * 9] + [acc_rept, r, phi, theta]
 
 				tmp = []
