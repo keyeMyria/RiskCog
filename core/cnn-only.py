@@ -82,7 +82,7 @@ def main():
     Y_ONLY_CNN = CNN_ONLY(X, class_size, feature_size)  # network
 
     # optimizer
-    Y = tf.placeholder(tf.float32, [None, feature_size])  # label
+    Y = tf.placeholder(tf.float32, [None, class_size])  # label
     l2 = 0.001 * sum(tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables())
     cost = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=Y_ONLY_CNN)
