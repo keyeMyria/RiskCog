@@ -1,0 +1,3 @@
+# when use ipython, please input the cmd below
+# python manage.py shell < queue_clearing
+!python queue_clearing.py

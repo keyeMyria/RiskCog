@@ -1,0 +1,44 @@
+Data preprocessing starts ...
+Summary: 
+ -root of train set: /home/cyrus/Public/data_of_riskcog/data_of_huawei_by_28_11_2017/train_t
+ -root of test set: /home/cyrus/Public/data_of_riskcog/data_of_huawei_by_28_11_2017/test
+ -target of train set: train_clean
+ -target of test set: test_clean
+ -Preprocessing method adopted: eqerr, zrerr
+Method: eqerr
+ -Threshold: 0.7
+Method: zrerr
+ -NO OPTION
+Format: 
+ -Window Size: 75
+ -Overlap: 0.5
+ -Least file number(only for train set): 575 
+
+Copy /home/cyrus/Public/data_of_riskcog/data_of_huawei_by_28_11_2017/train_t -> temp_train/
+Copy /home/cyrus/Public/data_of_riskcog/data_of_huawei_by_28_11_2017/test -> temp_test/
+ -done
+
+Check eqerr and zrerr
+TRAIN SET
+TEST SET
+...
+
+Extrema check
+TRAIN SET
+TEST SET
+...
+
+Normalization
+TRAIN SET
+TEST SET
+...
+
+Format
+TRAIN SET
+TEST SET
+1 861955030016110 total file number: 384 -> 384 OK
+...
+8 863445032682661 total file number: 2 -> 2 OK
+ -done
+
+Data preprocessing over.

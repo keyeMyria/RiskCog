@@ -1,0 +1,46 @@
+Data preprocessing starts ...
+Summary: 
+ -Root of data set: /home/cyrus/Public/data_of_riskcog/data_of_huawei_by_28_11_2017/train
+ -Target of data set: train_clean
+ -Preprocessing method adopted: eqerr, zrerr
+Method: eqerr
+ -Threshold: 0.7
+Method: zrerr
+ -NO OPTION
+Format: 
+ -Window Size: 75
+ -Overlap: 0.5
+ -Least file number: 575 
+
+Copy /home/cyrus/Public/data_of_riskcog/data_of_huawei_by_28_11_2017/train -> temp/ done
+
+Check eqerr and zrerr
+860982030305948
+ -remove 860982030305948/20170913140019
+ ...
+ -done
+
+Extrema check
+0 861955030016110
+-min: [-16.261417, -3.8115692, -5.554548, -4.208076, -3.6420832, -6.672097, -7.0236998, 0.00029999999, 0.0321]
+-max: [12.555194, 12.018892, 22.132, 3.8137887, 4.5593934, 4.5054975, 7.0699997, 9.412499, 9.690599]
+...
+ -done
+
+Normalization
+0 861955030016110 done
+...
+ -done
+
+Windows sliding
+0 861955030016110 done
+...
+ -done
+
+Format
+pick up 801 files
+1 861955030016110 total file number: 1122 -> 801 OK
+...
+- 862005030316737 total file number: 106 NOT ENOUGH DISCARD
+ -done
+Data preprocessing over.

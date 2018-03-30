@@ -8,8 +8,15 @@ __pycache__/
 
 # PyCharm
 .idea
-dataset/
-log/
+
+# Temp
+reference
+results
+
+# Dataset
+test/server_test/train
+test/server_test/test
+
 
 # Distribution / packaging
 .Python
