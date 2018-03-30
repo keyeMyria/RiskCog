@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# PyCharm
+.idea
+dataset/
+log/
+
 # Distribution / packaging
 .Python
 env/
@@ -99,3 +104,4 @@ ENV/
 
 # mypy
 .mypy_cache/
+/dataset/UCI HAR Dataset/UCI HAR Dataset/test/
