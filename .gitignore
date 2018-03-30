@@ -14,8 +14,7 @@ reference
 results
 
 # Dataset
-test/server_test/train
-test/server_test/test
+dataset/*
 
 
 # Distribution / packaging
