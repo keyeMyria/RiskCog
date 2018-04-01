@@ -18,7 +18,7 @@ target_path=$2
 echo "checking sit or walk..."
 find $path -maxdepth 1 -type f   |  xargs -i check_sit_or_walk.exe {} | cat > files
 cat files | awk -F/ '{print $0 , "imei"}' > log
-determine.exe 0.6
+determine.exe 0.5
 if [ ! -d "$target_path" ]
 then 
 	mkdir -p $target_path
