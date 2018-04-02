@@ -188,7 +188,7 @@ def predict(dataset_dir, model_paths, testing_filepaths):
     accuracies = []
     for model_path in model_paths:
         for libsvm_path in libsvm_paths:
-            os.system('{2}/svm-predict '
+            os.system('{3}/svm-predict '
                       '{0} {1} {2}'.format(libsvm_path, model_path, '/tmp/output_file', BIN_ROOT))
             with open('/tmp/output_file') as f:
                 accuracy = f.readlines()[-1].split(' ')[2]
