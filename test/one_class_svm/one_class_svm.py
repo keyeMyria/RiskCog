@@ -18,6 +18,7 @@ TEST = 'Test' # default: test
 # MIN_NUM_IMAGES_PER_CLASS = 10  # default 10
 # TRAIN = 'train' # default: train
 # TEST = 'test' # default: test
+BIN_ROOT = None
 
 
 def preprocessing(dataset_dir):
@@ -129,10 +130,10 @@ def train(dataset_dir, training_filepaths, validation_filepaths):
     """
     # format to arff and then to libsvm
     for filepath in training_filepaths + validation_filepaths:
-        os.system('../../server/riskserver-debugging-svm-with-queue/bin/make_arff.exe '
-                  '{0} 1 1 > {0}.arff'.format(filepath))
+        os.system('{1}/make_arff.exe '
+                  '{0} 1 1 > {0}.arff'.format(filepath, BIN_ROOT))
         os.system("sed -i \"s/\-nan/0/g\" {0}.arff".format(filepath))
-        os.system('python ../../tools/arff2libsvm.py {0} {0}.libsvm'.format('.'.join([filepath, 'arff'])))
+        os.system('python {1}/arff2libsvm.py {0} {0}.libsvm'.format('.'.join([filepath, 'arff']), BIN_ROOT))
 
     # train
     # cat training libsvm files and validation libsvm files
@@ -150,9 +151,9 @@ def train(dataset_dir, training_filepaths, validation_filepaths):
         os.system('mkdir -p {0}/model/{1}'.format(dataset_dir, user))
         model_path = os.path.join(dataset_dir, 'model', user, '.'.join([user, 'model']))
         # TODO tune the params
-        os.system('../../server/riskserver-debugging-svm-with-queue/bin/svm-train '
-                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 '
-                  '{0} {1}\n'.format(libsvm_path, model_path))
+        os.system('{2}/svm-train '
+                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 -q '
+                  '{0} {1}\n'.format(libsvm_path, model_path, BIN_ROOT))
         if model_path not in model_paths:
             model_paths.append(model_path)
 
@@ -170,8 +171,8 @@ def predict(dataset_dir, model_paths, testing_filepaths):
     # format to arff and then to libsvm
     libsvm_paths = []
     for filepath in testing_filepaths:
-        os.system('../../server/riskserver-debugging-svm-with-queue/bin/make_arff.exe '
-                  '{0} 1 1 > {0}.arff'.format(filepath))
+        os.system('{1}/make_arff.exe '
+                  '{0} 1 1 > {0}.arff'.format(filepath, BIN_ROOT))
         os.system("sed -i \"s/\-nan/0/g\" {0}.arff".format(filepath))
 
         user = filepath.split('/')[-2]
@@ -179,7 +180,7 @@ def predict(dataset_dir, model_paths, testing_filepaths):
         libsvm_path = os.path.join(dataset_dir, TEST, user,
                                    '.'.join([user, os.path.basename(filepath), 'arff', 'libsvm']))
 
-        os.system('python ../../tools/arff2libsvm.py {0}.arff {1}'.format(filepath, libsvm_path))
+        os.system('python {2}/arff2libsvm.py {0}.arff {1}'.format(filepath, libsvm_path, BIN_ROOT))
         if libsvm_path not in libsvm_paths:
             libsvm_paths.append(libsvm_path)
 
@@ -187,8 +188,8 @@ def predict(dataset_dir, model_paths, testing_filepaths):
     accuracies = []
     for model_path in model_paths:
         for libsvm_path in libsvm_paths:
-            os.system('../../server/riskserver-debugging-svm-with-queue/bin/svm-predict '
-                      '{0} {1} {2}'.format(libsvm_path, model_path, '/tmp/output_file'))
+            os.system('{3}/svm-predict '
+                      '{0} {1} {2}'.format(libsvm_path, model_path, '/tmp/output_file', BIN_ROOT))
             with open('/tmp/output_file') as f:
                 accuracy = f.readlines()[-1].split(' ')[2]
                 accuracies.append('model:{0}:test:{1}:accuracy:{2}'.format(
@@ -198,32 +199,41 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 
 if __name__ == '__main__':
     root = '/home/liuqiang/RiskCog'
-    dataset_dir = os.path.join(root, 'dataset/mimicry_raw/lying/Test_0')
-    log = os.path.join(root, 'test/one_class_svm/log')
-
-    # preprocessing, training, predicting
-    training_set, _, testing_set,  _ = preprocessing(dataset_dir)
-    model_paths = train(dataset_dir, training_set, [])
-
-    accuracies_1 = predict(dataset_dir, model_paths, training_set)
-    accuracies_2 = predict(dataset_dir, model_paths, testing_set)
+    BIN_ROOT = os.path.join(root, 'server/riskserver-debugging-svm-with-queue/bin')
+    log_path = os.path.join(root, 'results/one_class_svm_log')
     
-    # log gen
-    os.system('rm {0}'.format(log))
-    for accuracy in accuracies_1 + accuracies_2:
-        with open(log, 'a') as f:
-            f.write(accuracy)
-            f.write('\n')
+    dataset_dirs = []
+    for root_, dir_, file_ in os.walk(os.path.join(root, 'dataset/mimicry_raw')):
+        if TRAIN in dir_:
+            dataset_dirs.append(root_)
+    print '>> test examples {0} in total'.format(len(dataset_dirs))
 
-    # log parse
-    logs = np.loadtxt(log, delimiter=':', dtype=np.string_)
-    logs = logs[:, (1, 3, 5)]
+    for dataset_dir in dataset_dirs:
+        state = dataset_dir.split('/')[-2]
+        test_name = dataset_dir.split('/')[-1]
+        # preprocessing, training, predicting
+        training_set, _, testing_set,  _ = preprocessing(dataset_dir)
+        model_paths = train(dataset_dir, training_set, [])
 
-    statistics = [[], []]
-    for log in logs:
-        if log[0].split('.')[0] == log[1].split('.')[0]:
-            statistics[0].append(float(log[2][:-1]))
-        else:
-            statistics[1].append(float(log[2][:-1]))
-    result = np.mean(statistics, 1)
-    print '>> self_accuracy:{0}:other_accuracy:{1}'.format(result[0], result[1])
+        accuracies_1 = predict(dataset_dir, model_paths, training_set)
+        accuracies_2 = predict(dataset_dir, model_paths, testing_set)
+    
+        # log gen
+        os.system('rm {0}'.format(log_path))
+        for accuracy in accuracies_1 + accuracies_2:
+            with open(log_path, 'a') as f:
+                f.write(accuracy)
+                f.write('\n')
+
+        # log parse
+        logs = np.loadtxt(log_path, delimiter=':', dtype=np.string_)
+        logs = logs[:, (1, 3, 5)]
+    
+        statistics = [[], []]
+        for log in logs:
+            if log[0].split('.')[0] == log[1].split('.')[0]:
+                statistics[0].append(float(log[2][:-1]))
+            else:
+                statistics[1].append(float(log[2][:-1]))
+        result = [np.mean(statistics[0]), np.mean(statistics[1])]
+        print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(state, test_name, result[0], result[1])
