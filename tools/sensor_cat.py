@@ -69,9 +69,9 @@ if __name__ == '__main__':
         'gyro_z.txt',
     ]
 
-    root = '/home/cyrus/Public/RiskCog/dataset/mimicry'
-    target = '/home/cyrus/Public/RiskCog/dataset/mimicry_raw'
-    os.system('rm -r {0}'.format(target))
+    root = '/home/liuqiang/RiskCog/dataset/mimicry'
+    target = '/home/liuqiang/RiskCog/dataset/mimicry_raw'
+    os.system('rm -rf {0}'.format(target))
     for root_, dir_, _ in os.walk(root):
         if len(dir_) == 0:
             sensor_cat(root_, target, separated_sensor_filenames)
