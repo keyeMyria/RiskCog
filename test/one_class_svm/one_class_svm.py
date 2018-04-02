@@ -7,9 +7,9 @@ one class svm test
 
 :date: 2018-04-01
 """
-import hashlib
 import os
 import random
+import numpy as np
 
 MAX_NUM_IMAGES_PER_CLASS = 2 ** 27 - 1  # 134M
 MIN_NUM_IMAGES_PER_CLASS = 0  # default 10
@@ -195,16 +195,29 @@ if __name__ == '__main__':
     dataset_dir = os.path.join(root, 'dataset/mimicry_raw/lying/Test_0')
     log = os.path.join(root, 'test/one_class_svm/log')
 
+    # preprocessing, training, predicting
     training_set, _, testing_set,  _ = preprocessing(dataset_dir)
     model_paths = train(dataset_dir, training_set, [])
     accuracies = predict(dataset_dir, model_paths, training_set)
 
+    # log gen
     os.system('rm {0}'.format(log))
     for accuracy in accuracies:
-        print accuracy
         with open(log, 'a') as f:
             f.write(accuracy)
             f.write('\n')
 
-    print len(training_set), len(testing_set), len(model_paths), len(accuracies)
+    # log parse
+    logs = np.loadtxt(log, delimiter=':', dtype=np.string_)
+    logs = logs[:, (1, 3, 5)]
+
+    statistics = [[], []]
+    for log in logs:
+        if log[0].split('.')[0] == log[1].split('.')[0]:
+            statistics[0].append(float(log[2][:-1]))
+        else:
+            statistics[1].append(float(log[2][:-1]))
+    result = np.mean(statistics, 1)
+    print '>> self_accuracy:{0}:other_accuracy:{1}'.format(result[0], result[1])
+
 
