@@ -96,6 +96,9 @@ def preprocessing(dataset_dir):
             filenames = os.listdir(os.path.join(dataset_dir, TEST, testing_user))
             for filename in filenames:
                 filepath = os.path.join(dataset_dir, TEST, testing_user, filename)
+                if filepath.endswith('arff') or filepath.endswith('libsvm'):
+                    os.system('rm {0}'.format(filepath))
+                    continue
                 testing_filepaths.append(filepath)
 
     # add filepaths into other set
@@ -106,6 +109,9 @@ def preprocessing(dataset_dir):
             filenames = os.listdir(os.path.join(dataset_dir, 'other', other_user))
             for filename in filenames:
                 filepath = os.path.join(dataset_dir, 'other', other_user, filename)
+                if filepath.endswith('arff') or filepath.endswith('libsvm'):
+                    os.system('rm {0}'.format(filepath))
+                    continue
                 other_filepaths.append(filepath)
     else:
         other_filepaths = None
@@ -191,20 +197,22 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 
 
 if __name__ == '__main__':
-    root = '/home/cyrus/Public/RiskCog'
+    root = '/home/liuqiang/RiskCog'
     dataset_dir = os.path.join(root, 'dataset/mimicry_raw/lying/Test_0')
     log = os.path.join(root, 'test/one_class_svm/log')
 
     training_set, _, testing_set,  _ = preprocessing(dataset_dir)
     model_paths = train(dataset_dir, training_set, [])
-    accuracies = predict(dataset_dir, model_paths, training_set)
-
     os.system('rm {0}'.format(log))
-    for accuracy in accuracies:
+
+    accuracies_1 = predict(dataset_dir, model_paths, training_set)
+    accuracies_2 = predict(dataset_dir, model_paths, testing_set)
+
+    for accuracy in accuracies_1 + accuracies_2:
         print accuracy
         with open(log, 'a') as f:
             f.write(accuracy)
             f.write('\n')
 
-    print len(training_set), len(testing_set), len(model_paths), len(accuracies)
+    print len(training_set), len(testing_set), len(model_paths)
 
