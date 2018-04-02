@@ -152,7 +152,7 @@ def train(dataset_dir, training_filepaths, validation_filepaths):
         model_path = os.path.join(dataset_dir, 'model', user, '.'.join([user, 'model']))
         # TODO tune the params
         os.system('{2}/svm-train '
-                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 -q'
+                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 -q '
                   '{0} {1}\n'.format(libsvm_path, model_path, BIN_ROOT))
         if model_path not in model_paths:
             model_paths.append(model_path)
@@ -200,7 +200,7 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 if __name__ == '__main__':
     root = '/home/liuqiang/RiskCog'
     BIN_ROOT = os.path.join(root, 'server/riskserver-debugging-svm-with-queue/bin')
-    log = os.path.join(root, 'results/one_class_svm_log')
+    log_path = os.path.join(root, 'results/one_class_svm_log')
     
     dataset_dirs = []
     for root_, dir_, file_ in os.walk(os.path.join(root, 'dataset/mimicry_raw')):
@@ -219,14 +219,14 @@ if __name__ == '__main__':
         accuracies_2 = predict(dataset_dir, model_paths, testing_set)
     
         # log gen
-        os.system('rm {0}'.format(log))
+        os.system('rm {0}'.format(log_path))
         for accuracy in accuracies_1 + accuracies_2:
-            with open(log, 'a') as f:
+            with open(log_path, 'a') as f:
                 f.write(accuracy)
                 f.write('\n')
 
         # log parse
-        logs = np.loadtxt(log, delimiter=':', dtype=np.string_)
+        logs = np.loadtxt(log_path, delimiter=':', dtype=np.string_)
         logs = logs[:, (1, 3, 5)]
     
         statistics = [[], []]
@@ -236,4 +236,4 @@ if __name__ == '__main__':
             else:
                 statistics[1].append(float(log[2][:-1]))
         result = [np.mean(statistics[0]), np.mean(statistics[1])]
-        print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(state, test_number, result[0], result[1])
+        print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(state, test_name, result[0], result[1])
