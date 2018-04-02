@@ -152,7 +152,7 @@ def train(dataset_dir, training_filepaths, validation_filepaths):
         model_path = os.path.join(dataset_dir, 'model', user, '.'.join([user, 'model']))
         # TODO tune the params
         os.system('{2}/svm-train '
-                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 '
+                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 -q'
                   '{0} {1}\n'.format(libsvm_path, model_path, BIN_ROOT))
         if model_path not in model_paths:
             model_paths.append(model_path)
@@ -200,32 +200,40 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 if __name__ == '__main__':
     root = '/home/liuqiang/RiskCog'
     BIN_ROOT = os.path.join(root, 'server/riskserver-debugging-svm-with-queue/bin')
-    dataset_dir = os.path.join(root, 'dataset/mimicry_raw/lying/Test_0')
     log = os.path.join(root, 'results/one_class_svm_log')
-
-    # preprocessing, training, predicting
-    training_set, _, testing_set,  _ = preprocessing(dataset_dir)
-    model_paths = train(dataset_dir, training_set, [])
-
-    accuracies_1 = predict(dataset_dir, model_paths, training_set)
-    accuracies_2 = predict(dataset_dir, model_paths, testing_set)
     
-    # log gen
-    os.system('rm {0}'.format(log))
-    for accuracy in accuracies_1 + accuracies_2:
-        with open(log, 'a') as f:
-            f.write(accuracy)
-            f.write('\n')
+    dataset_dirs = []
+    for root_, dir_, file_ in os.walk(os.path.join(root, 'dataset/mimicry_raw')):
+        if TRAIN in dir_:
+            dataset_dirs.append(root_)
+    print '>> test examples {0} in total'.format(len(dataset_dirs))
 
-    # log parse
-    logs = np.loadtxt(log, delimiter=':', dtype=np.string_)
-    logs = logs[:, (1, 3, 5)]
+    for dataset_dir in dataset_dirs:
+        state = dataset_dir.split('/')[-2]
+        test_name = dataset_dir.split('/')[-1]
+        # preprocessing, training, predicting
+        training_set, _, testing_set,  _ = preprocessing(dataset_dir)
+        model_paths = train(dataset_dir, training_set, [])
 
-    statistics = [[], []]
-    for log in logs:
-        if log[0].split('.')[0] == log[1].split('.')[0]:
-            statistics[0].append(float(log[2][:-1]))
-        else:
-            statistics[1].append(float(log[2][:-1]))
-    result = [np.mean(statistics[0]), np.mean(statistics[1])]
-    print '>> self_accuracy:{0}:other_accuracy:{1}'.format(result[0], result[1])
+        accuracies_1 = predict(dataset_dir, model_paths, training_set)
+        accuracies_2 = predict(dataset_dir, model_paths, testing_set)
+    
+        # log gen
+        os.system('rm {0}'.format(log))
+        for accuracy in accuracies_1 + accuracies_2:
+            with open(log, 'a') as f:
+                f.write(accuracy)
+                f.write('\n')
+
+        # log parse
+        logs = np.loadtxt(log, delimiter=':', dtype=np.string_)
+        logs = logs[:, (1, 3, 5)]
+    
+        statistics = [[], []]
+        for log in logs:
+            if log[0].split('.')[0] == log[1].split('.')[0]:
+                statistics[0].append(float(log[2][:-1]))
+            else:
+                statistics[1].append(float(log[2][:-1]))
+        result = [np.mean(statistics[0]), np.mean(statistics[1])]
+        print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(state, test_number, result[0], result[1])
