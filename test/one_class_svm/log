@@ -1,0 +1,4 @@
+model:user_26.model:test:user_26.raw_data.arff.libsvm:accuracy:49.4978%
+model:user_26.model:test:user_29.raw_data.arff.libsvm:accuracy:0.15674%
+model:user_29.model:test:user_26.raw_data.arff.libsvm:accuracy:0%
+model:user_29.model:test:user_29.raw_data.arff.libsvm:accuracy:49.5298%

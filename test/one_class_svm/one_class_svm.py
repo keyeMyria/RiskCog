@@ -60,23 +60,31 @@ def preprocessing(dataset_dir):
     # split dataset into 2 or 3 parts
     users = os.listdir(os.path.join(dataset_dir, TRAIN))
     for user in users:
+        filenames = os.listdir(os.path.join(dataset_dir, TRAIN, user))
+        for filename in filenames:
+            filepath = os.path.join(dataset_dir, TRAIN, user, filename)
+            if filepath.endswith('arff') or filepath.endswith('libsvm'):
+                os.system('rm {0}'.format(filepath))
+
         # make the shuffle result unchangeable
         random.seed(0)
         filenames = os.listdir(os.path.join(dataset_dir, TRAIN, user))
         random.shuffle(filenames)
+
         if len(filenames) < MIN_NUM_IMAGES_PER_CLASS:
             raise ValueError('files for {0} is less than 10, which is not enough'.format(user))
+
         for index, filename in enumerate(filenames):
             filepath = os.path.join(dataset_dir, TRAIN, user, filename)
             if TEST not in types:
-                if index >= 90:
+                if index / float(len(filenames)) >= .90:
                     testing_filepaths.append(filepath)
-                elif index >= 80:
+                elif index / float(len(filenames))>= .80:
                     validation_filepaths.append(filepath)
                 else:
                     training_filepaths.append(filepath)
             else:
-                if index >= 80:
+                if index / float(len(filenames)) >= .80:
                     validation_filepaths.append(filepath)
                 else:
                     training_filepaths.append(filepath)
@@ -161,6 +169,7 @@ def predict(dataset_dir, model_paths, testing_filepaths):
         os.system("sed -i \"s/\-nan/0/g\" {0}.arff".format(filepath))
 
         user = filepath.split('/')[-2]
+        os.system('mkdir -p {0}'.format(os.path.join(dataset_dir, TEST, user)))
         libsvm_path = os.path.join(dataset_dir, TEST, user,
                                    '.'.join([user, os.path.basename(filepath), 'arff', 'libsvm']))
 
@@ -182,8 +191,20 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 
 
 if __name__ == '__main__':
-    dataset_dir = '/home/cyrus/Public/RiskCog/dataset/mimicry_raw/lying/Test_0'
+    root = '/home/cyrus/Public/RiskCog'
+    dataset_dir = os.path.join(root, 'dataset/mimicry_raw/lying/Test_0')
+    log = os.path.join(root, 'test/one_class_svm/log')
+
     training_set, _, testing_set,  _ = preprocessing(dataset_dir)
     model_paths = train(dataset_dir, training_set, [])
-    print len(training_set), len(testing_set), len(model_paths)
+    accuracies = predict(dataset_dir, model_paths, training_set)
+
+    os.system('rm {0}'.format(log))
+    for accuracy in accuracies:
+        print accuracy
+        with open(log, 'a') as f:
+            f.write(accuracy)
+            f.write('\n')
+
+    print len(training_set), len(testing_set), len(model_paths), len(accuracies)
 
