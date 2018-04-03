@@ -130,7 +130,7 @@ def train(dataset_dir, training_filepaths, validation_filepaths):
     """
     # format to arff and then to libsvm
     for filepath in training_filepaths + validation_filepaths:
-        os.system('{1}/make_arff.exe '
+        os.system('{1}/make_arff6.exe '
                   '{0} 1 1 > {0}.arff'.format(filepath, BIN_ROOT))
         os.system("sed -i \"s/\-nan/0/g\" {0}.arff".format(filepath))
         os.system('python {1}/arff2libsvm.py {0} {0}.libsvm'.format('.'.join([filepath, 'arff']), BIN_ROOT))
@@ -171,7 +171,7 @@ def predict(dataset_dir, model_paths, testing_filepaths):
     # format to arff and then to libsvm
     libsvm_paths = []
     for filepath in testing_filepaths:
-        os.system('{1}/make_arff.exe '
+        os.system('{1}/make_arff6.exe '
                   '{0} 1 1 > {0}.arff'.format(filepath, BIN_ROOT))
         os.system("sed -i \"s/\-nan/0/g\" {0}.arff".format(filepath))
 
@@ -198,7 +198,7 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 
 
 if __name__ == '__main__':
-    root = '/home/liuqiang/RiskCog'
+    root = '/home/cyrus/Public/RiskCog'
     BIN_ROOT = os.path.join(root, 'server/riskserver-debugging-svm-with-queue/bin')
     log_path = os.path.join(root, 'results/one_class_svm_log')
     
@@ -237,3 +237,4 @@ if __name__ == '__main__':
                 statistics[1].append(float(log[2][:-1]))
         result = [np.mean(statistics[0]), np.mean(statistics[1])]
         print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(state, test_name, result[0], result[1])
+        # break
