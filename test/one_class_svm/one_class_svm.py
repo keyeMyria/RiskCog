@@ -13,8 +13,8 @@ import numpy as np
 
 MAX_NUM_IMAGES_PER_CLASS = 2 ** 27 - 1  # 134M
 MIN_NUM_IMAGES_PER_CLASS = 0  # default 10
-TRAIN = 'Train' # default: train
-TEST = 'Test' # default: test
+TRAIN = 'Train'  # default: train
+TEST = 'Test'  # default: test
 # MIN_NUM_IMAGES_PER_CLASS = 10  # default 10
 # TRAIN = 'train' # default: train
 # TEST = 'test' # default: test
@@ -80,7 +80,7 @@ def preprocessing(dataset_dir):
             if TEST not in types:
                 if index / float(len(filenames)) >= .90:
                     testing_filepaths.append(filepath)
-                elif index / float(len(filenames))>= .80:
+                elif index / float(len(filenames)) >= .80:
                     validation_filepaths.append(filepath)
                 else:
                     training_filepaths.append(filepath)
@@ -120,12 +120,14 @@ def preprocessing(dataset_dir):
     return training_filepaths, validation_filepaths, testing_filepaths, other_filepaths
 
 
-def train(dataset_dir, training_filepaths, validation_filepaths):
+def train(dataset_dir, training_filepaths, validation_filepaths, n_classes=2, adversarial=False):
     """
-    train using 1-class SVM
+    train using n-class SVM
 
     :param training_filepaths: filepaths to files in training set
     :param validation_filepaths: filepaths to files in validation set
+    :param n_classes: n-classes svm
+    :param adversarial: if True, copy the features and paste them with adverse label
     :return: model paths to all users, one of which has a format like `dataset/model/user/user.model`
     """
     # format to arff and then to libsvm
@@ -147,13 +149,32 @@ def train(dataset_dir, training_filepaths, validation_filepaths):
 
     model_paths = []
     for libsvm_path in libsvm_paths:
+        if adversarial:
+            lines_0 = []
+            lines_minus_1 = []
+            with open(libsvm_path) as f:
+                for line in f:
+                    lines_0.append(line.replace('1   ', '0   ', 1))
+                    lines_minus_1.append(line.replace('1   ', '-1   ', 1))
+            with open(libsvm_path, 'a') as f:
+                for line in lines_0:
+                    f.write(line)
+                for line in lines_minus_1:
+                    f.write(line)
         user = libsvm_path.split('/')[-2]
         os.system('mkdir -p {0}/model/{1}'.format(dataset_dir, user))
         model_path = os.path.join(dataset_dir, 'model', user, '.'.join([user, 'model']))
         # TODO tune the params
-        os.system('{2}/svm-train '
-                  '-s 2 -t 2 -g 1 -n 0.5 -p 0.1 -h 1 -q '
-                  '{0} {1}\n'.format(libsvm_path, model_path, BIN_ROOT))
+        if n_classes == 1:
+            os.system('{2}/svm-train '
+                      '-s 2 -t 2 -g 1 -h 1  '
+                      '{0} {1}\n'.format(libsvm_path, model_path, BIN_ROOT))
+        elif n_classes == 2:
+            os.system('{2}/svm-train '
+                      '-s 0 -t 2 -g 0.5 -r 0 -c 5000 -h 1 -q '
+                      '{0} {1}\n'.format(libsvm_path, model_path, BIN_ROOT))
+        else:
+            raise NotImplementedError('{0}-class svm has not implemented'.format(n_classes))
         if model_path not in model_paths:
             model_paths.append(model_path)
 
@@ -198,10 +219,10 @@ def predict(dataset_dir, model_paths, testing_filepaths):
 
 
 if __name__ == '__main__':
-    root = '/home/liuqiang/RiskCog'
+    root = '/home/cyrus/Public/RiskCog'
     BIN_ROOT = os.path.join(root, 'server/riskserver-debugging-svm-with-queue/bin')
     log_path = os.path.join(root, 'results/one_class_svm_log')
-    
+
     dataset_dirs = []
     for root_, dir_, file_ in os.walk(os.path.join(root, 'dataset/mimicry_raw')):
         if TRAIN in dir_:
@@ -212,12 +233,12 @@ if __name__ == '__main__':
         state = dataset_dir.split('/')[-2]
         test_name = dataset_dir.split('/')[-1]
         # preprocessing, training, predicting
-        training_set, _, testing_set,  _ = preprocessing(dataset_dir)
-        model_paths = train(dataset_dir, training_set, [])
+        training_set, _, testing_set, _ = preprocessing(dataset_dir)
+        model_paths = train(dataset_dir, training_set, [], n_classes=2, adversarial=True)
 
         accuracies_1 = predict(dataset_dir, model_paths, training_set)
         accuracies_2 = predict(dataset_dir, model_paths, testing_set)
-    
+
         # log gen
         os.system('rm {0}'.format(log_path))
         for accuracy in accuracies_1 + accuracies_2:
@@ -228,7 +249,7 @@ if __name__ == '__main__':
         # log parse
         logs = np.loadtxt(log_path, delimiter=':', dtype=np.string_)
         logs = logs[:, (1, 3, 5)]
-    
+
         statistics = [[], []]
         for log in logs:
             if log[0].split('.')[0] == log[1].split('.')[0]:
@@ -236,4 +257,5 @@ if __name__ == '__main__':
             else:
                 statistics[1].append(float(log[2][:-1]))
         result = [np.mean(statistics[0]), np.mean(statistics[1])]
-        print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(state, test_name, result[0], result[1])
+        print '>> state:{0}:test_name:{1}:self_accuracy:{2}:other_accuracy:{3}'.format(
+            state, test_name, result[0], result[1])
