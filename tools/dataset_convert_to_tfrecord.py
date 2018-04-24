@@ -6,12 +6,11 @@ import math
 import os
 import random
 import sys
-from multiprocessing import Pool
 
 import tensorflow as tf
 
 # how many to be train set
-_NUM_TRAIN = 0.8
+_NUM_TRAIN = 1
 # how many class you want
 _CLASS_UPPER_LIMIT = 1000
 # how many window files you want
@@ -62,7 +61,7 @@ def _write_label_file(labels_to_class_names, dataset_dir, filename=_LABELS_FILEN
             f.write('%d:%s\n' % (label, class_name))
 
 
-# @profile
+@profile
 def _get_filenames_and_classes(root):
     class_names = []
 
@@ -101,7 +100,7 @@ def _get_dataset_filename(dataset_dir, split_name, shard_id):
     return os.path.join(dataset_dir, output_filename)
 
 
-# @profile
+@profile
 def _convert_dataset_to_tfrecord(split_name, filenames, class_names_to_ids, dataset_dir):
     """Converts the given filenames to a TFRecord dataset.
 
@@ -114,62 +113,57 @@ def _convert_dataset_to_tfrecord(split_name, filenames, class_names_to_ids, data
     """
     assert split_name in ['train', 'validation']
 
-    pool = Pool(processes=10)
-
     NUM_SHARDS = int(math.ceil(len(filenames) / float(_NUM_PER_SHARD)))
+
     for shard_id in range(NUM_SHARDS):
         # filename: riskcog_train_shard_id.tfrecord
         output_filename = _get_dataset_filename(dataset_dir, split_name, shard_id)
-        start_ndx = shard_id * _NUM_PER_SHARD
-        end_ndx = min((shard_id + 1) * _NUM_PER_SHARD, len(filenames))
-        shard_filenames = filenames[start_ndx:end_ndx]
-        pool.apply_async(_real_write, args=(
-            shard_filenames, split_name, shard_id, output_filename, class_names_to_ids))
-    pool.close()
-    pool.join()
 
+        with tf.python_io.TFRecordWriter(output_filename) as tfrecord_writer:
+            start_ndx = shard_id * _NUM_PER_SHARD
+            end_ndx = min((shard_id + 1) * _NUM_PER_SHARD, len(filenames))
 
-def _real_write(filenames, split_name, shard_id, output_filename, class_names_to_ids):
-    with tf.python_io.TFRecordWriter(output_filename) as tfrecord_writer:
-        for i in range(0, len(filenames)):
+            for i in range(start_ndx, end_ndx):
+                sys.stdout.write('\r>> Converting window %d/%d shard %d for %s' % (
+                    i + 1, len(filenames), shard_id, split_name))
+                sys.stdout.flush()
 
-            # Read the filename:
-            # image_data = tf.gfile.FastGFile(filenames[i], 'rb').read()
-            with open(filenames[i]) as f:
-                # window_data = tf.gfile.FastGFile(filenames[i], 'rb').read()
-                window_data = [float(line) for line in f]
+                # Read the filename:
+                # image_data = tf.gfile.FastGFile(filenames[i], 'rb').read()
+                with open(filenames[i]) as f:
+                    # window_data = tf.gfile.FastGFile(filenames[i], 'rb').read()
+                    window_data = [float(line) for line in f]
 
-            class_name = os.path.basename(os.path.dirname(filenames[i]))
-            class_id = class_names_to_ids[class_name]
+                class_name = os.path.basename(os.path.dirname(filenames[i]))
+                class_id = class_names_to_ids[class_name]
 
-            example = tf.train.Example(features=tf.train.Features(
-                feature={
-                    'window/encoded': _float_feature(window_data),
-                    'window/label': _int64_feature(class_id),
-                }))
-            tfrecord_writer.write(example.SerializeToString())
-    print('>> Converting window shard %d for %s done' % (shard_id, split_name))
+                example = tf.train.Example(features=tf.train.Features(
+                    feature={
+                        'window/encoded': _float_feature(window_data),
+                        'window/label': _int64_feature(class_id),
+                    }))
+                tfrecord_writer.write(example.SerializeToString())
 
+    sys.stdout.write('\n')
+    sys.stdout.flush()
 
 def get_size(filenames):
     size = 0
     for filename in filenames:
         size += os.path.getsize(filename)
 
-    return round(size / 1024 / 1024, 3)
+    return round(size/1024/1024, 3)
 
 
-# @profile
+@profile
 def main():
     # root = sys.argv[-2]
     # target = sys.argv[-1]
     root = '/home/linzi/txdata/largeScale_Test_TX_LSTM/balanceDataSet/txData_Window_75'
-    target = './tfrecord-for-1000-14000'
+    target = 'tfrecord-for-1000-40000'
 
-    os.system('rm -rf {0}'.format(target))
-    os.mkdir(target)
-    os.mkdir(os.path.join(target, 'train'))
-    os.mkdir(os.path.join(target, 'test'))
+    if not os.path.exists(target):
+        os.mkdir(target)
 
     window_filenames, class_names = _get_filenames_and_classes(root)
     print('>> number of window files', len(window_filenames))
@@ -185,8 +179,8 @@ def main():
     validation_filenames = window_filenames[int(_NUM_TRAIN * len(window_filenames)):]
 
     # First, convert the training and validation sets.
-    _convert_dataset_to_tfrecord('train', training_filenames, class_names_to_ids, os.path.join(target, 'train'))
-    _convert_dataset_to_tfrecord('validation', validation_filenames, class_names_to_ids, os.path.join(target, 'test'))
+    _convert_dataset_to_tfrecord('train', training_filenames, class_names_to_ids, target)
+    _convert_dataset_to_tfrecord('validation', validation_filenames, class_names_to_ids, target)
 
     # Finally, write the labels file:
     labels_to_class_names = dict(zip(range(len(class_names)), class_names))

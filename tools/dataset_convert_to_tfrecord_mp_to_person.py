@@ -1,3 +1,6 @@
+"""
+    fix bug 'splitting data on whole data set rather that on one person's'
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -13,11 +16,15 @@ import tensorflow as tf
 # how many to be train set
 _NUM_TRAIN = 0.8
 # how many class you want
-_CLASS_UPPER_LIMIT = 1000
+_CLASS_UPPER_LIMIT = 3 
 # how many window files you want
-_FILE_LOWER_LIMIT = 14000
+_FILE_LOWER_LIMIT = 1000
 # how many files in one tfrecord file
-_NUM_PER_SHARD = 40000
+_NUM_PER_SHARD = 100
+# how many processes you want
+_NUM_PROCESSES = 10
+# and config the root(source) and target dir in main()
+
 
 _LABELS_FILENAME = 'labels.txt'
 _RANDOM_SEED = 0
@@ -79,20 +86,26 @@ def _get_filenames_and_classes(root):
     random.shuffle(class_names)
     class_names = class_names[:_CLASS_UPPER_LIMIT]
 
-    window_filenames = []
+    training_windows, test_windows = [], []
     for classname in class_names:
         directory = os.path.join(root, classname)
 
         filenames = os.listdir(os.path.join(root, classname))
         random.seed(_RANDOM_SEED)
         random.shuffle(filenames)
-        filenames = filenames[:_FILE_LOWER_LIMIT]
+        training_filenames = filenames[:int(_NUM_TRAIN * _FILE_LOWER_LIMIT)]
+        test_filenames = filenames[int(_NUM_TRAIN * _FILE_LOWER_LIMIT): _FILE_LOWER_LIMIT]
+        print('for {0}, train:test = {1}'.format(classname, len(training_filenames)/float(len(test_filenames))))
 
-        for filename in filenames:
-            path = os.path.join(directory, filename)
-            window_filenames.append(path)
+        for training_filename in training_filenames:
+            path = os.path.join(directory, training_filename)
+            training_windows.append(path)
 
-    return window_filenames, sorted(class_names)
+        for test_filename in test_filenames:
+            path = os.path.join(directory, test_filename)
+            test_windows.append(path)
+
+    return training_windows, test_windows, sorted(class_names)
 
 
 def _get_dataset_filename(dataset_dir, split_name, shard_id):
@@ -114,7 +127,7 @@ def _convert_dataset_to_tfrecord(split_name, filenames, class_names_to_ids, data
     """
     assert split_name in ['train', 'validation']
 
-    pool = Pool(processes=10)
+    pool = Pool(processes=_NUM_PROCESSES)
 
     NUM_SHARDS = int(math.ceil(len(filenames) / float(_NUM_PER_SHARD)))
     for shard_id in range(NUM_SHARDS):
@@ -161,28 +174,28 @@ def get_size(filenames):
 
 # @profile
 def main():
-    # root = sys.argv[-2]
-    # target = sys.argv[-1]
-    root = '/home/linzi/txdata/largeScale_Test_TX_LSTM/balanceDataSet/txData_Window_75'
-    target = './tfrecord-for-1000-14000'
+    root = 'top_3'
+    # target = '../target'
+    # root = '/home/linzi/txdata/largeScale_Test_TX_LSTM/balanceDataSet/txData_Window_75'
+    target = './tfrecord-for-top-3-1000'
 
     os.system('rm -rf {0}'.format(target))
     os.mkdir(target)
     os.mkdir(os.path.join(target, 'train'))
     os.mkdir(os.path.join(target, 'test'))
 
-    window_filenames, class_names = _get_filenames_and_classes(root)
-    print('>> number of window files', len(window_filenames))
+    training_filenames, validation_filenames, class_names = _get_filenames_and_classes(root)
+    print('>> number of window files', len(training_filenames) + len(validation_filenames))
     print('>> number of classes', len(class_names))
     # print('>> size of window files', get_size(window_filenames))
 
     class_names_to_ids = dict(zip(class_names, range(len(class_names))))
 
     # Divide into train and test:
-    random.seed(_RANDOM_SEED)
-    random.shuffle(window_filenames)
-    training_filenames = window_filenames[:int(_NUM_TRAIN * len(window_filenames))]
-    validation_filenames = window_filenames[int(_NUM_TRAIN * len(window_filenames)):]
+    # random.seed(_RANDOM_SEED)
+    # random.shuffle(window_filenames)
+    # training_filenames = window_filenames[:int(_NUM_TRAIN * len(window_filenames))]
+    # validation_filenames = window_filenames[int(_NUM_TRAIN * len(window_filenames)):]
 
     # First, convert the training and validation sets.
     _convert_dataset_to_tfrecord('train', training_filenames, class_names_to_ids, os.path.join(target, 'train'))
